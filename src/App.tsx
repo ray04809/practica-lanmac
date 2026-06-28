@@ -5,6 +5,7 @@ import { Landing } from './pages/Landing'
 import { PlacementTest } from './pages/PlacementTest'
 import { DailyPractice } from './pages/DailyPractice'
 import { Results } from './pages/Results'
+import { Conversation } from './pages/Conversation'
 import { useUser } from './hooks/useUser'
 
 function AppContent() {
@@ -37,6 +38,12 @@ function AppContent() {
             path="/practice"
             element={
               user ? <DailyPractice user={user} onComplete={refresh} /> : <Landing user={null} />
+            }
+          />
+          <Route
+            path="/conversation"
+            element={
+              user ? <Conversation user={user} /> : <Landing user={null} />
             }
           />
           <Route
