@@ -108,7 +108,7 @@ export function Results({ user }: Props) {
           Inscríbete en LANMAC y lleva tu inglés al máximo.
         </p>
         <a
-          href="https://wa.me/18098706555?text=Hola%2C%20completé%20el%20test%20de%20nivel%20y%20obtuve%20{cefr}%2C%20quiero%20más%20información"
+          href={`https://wa.me/18098706555?text=Hola%2C%20completé%20el%20test%20de%20nivel%20y%20obtuve%20${cefr}%2C%20quiero%20más%20información`}
           className="inline-block bg-white text-lanmac px-6 py-2 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
         >
           Hablar con un asesor

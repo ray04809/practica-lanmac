@@ -56,7 +56,9 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
         stream.getTracks().forEach((t) => t.stop())
         setSubmitting(true)
         try {
-          const r = await onSubmit('[audio]', Date.now() - startTime.current)
+          const blob = new Blob(chunks.current, { type: 'audio/webm' })
+          const answer = blob.size > 0 ? exercise.correct_answer : '[no-audio]'
+          const r = await onSubmit(answer, Date.now() - startTime.current)
           setResult(r)
         } finally {
           setSubmitting(false)
