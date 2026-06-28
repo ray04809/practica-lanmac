@@ -2,6 +2,24 @@ import { useState, useRef } from 'react'
 import { Check, X, Volume2, Mic, MicOff, Send } from 'lucide-react'
 import type { Exercise, SubmitResult } from '../lib/types'
 
+const MATCH_COLORS = [
+  'border-blue-400 bg-blue-50',
+  'border-emerald-400 bg-emerald-50',
+  'border-purple-400 bg-purple-50',
+  'border-amber-400 bg-amber-50',
+  'border-rose-400 bg-rose-50',
+  'border-cyan-400 bg-cyan-50',
+]
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 interface Props {
   exercise: Exercise
   onSubmit: (answer: string, timeMs: number) => Promise<SubmitResult>
@@ -17,6 +35,18 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
   const startTime = useRef(Date.now())
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
+
+  const [matchData] = useState(() => {
+    if (exercise.exercise_type !== 'match') return null
+    const pairs = (exercise.options as string[]).map(opt => {
+      const idx = opt.indexOf(' → ')
+      if (idx === -1) return { left: opt, right: opt }
+      return { left: opt.substring(0, idx), right: opt.substring(idx + 3) }
+    })
+    return { pairs, shuffledRight: shuffle(pairs.map(p => p.right)) }
+  })
+  const [activeLeft, setActiveLeft] = useState<number | null>(null)
+  const [userMatches, setUserMatches] = useState<Map<number, number>>(new Map())
 
   const handleSelect = async (option: string) => {
     if (result) return
@@ -39,6 +69,32 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleMatchSubmit = async () => {
+    if (!matchData || submitting) return
+    const answer = matchData.pairs.map((pair, i) => {
+      const rightIdx = userMatches.get(i)
+      const right = rightIdx !== undefined ? matchData.shuffledRight[rightIdx] : ''
+      return `${pair.left} → ${right}`
+    }).join(',')
+    setSubmitting(true)
+    try {
+      const r = await onSubmit(answer, Date.now() - startTime.current)
+      setResult(r)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMatchSelect = (rightIdx: number) => {
+    if (activeLeft === null || result) return
+    const next = new Map(userMatches)
+    for (const [k, v] of next) if (v === rightIdx) next.delete(k)
+    next.set(activeLeft, rightIdx)
+    setUserMatches(next)
+    const nextUnmatched = matchData!.pairs.findIndex((_, i) => !next.has(i))
+    setActiveLeft(nextUnmatched >= 0 ? nextUnmatched : null)
   }
 
   const handleSpeak = async () => {
@@ -85,6 +141,12 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
     speechSynthesis.speak(utterance)
   }
 
+  const isChoiceType =
+    exercise.exercise_type === 'multiple_choice' ||
+    exercise.exercise_type === 'true_false' ||
+    exercise.exercise_type === 'listen_choose' ||
+    exercise.exercise_type === 'image_choose'
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 animate-slide-up">
       <div className="flex items-center gap-2 mb-1">
@@ -107,9 +169,7 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
         </button>
       )}
 
-      {(exercise.exercise_type === 'multiple_choice' ||
-        exercise.exercise_type === 'true_false' ||
-        exercise.exercise_type === 'listen_choose') && (
+      {isChoiceType && (
         <div className="space-y-2">
           {(exercise.options as string[]).map((opt) => {
             let classes = 'w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium '
@@ -128,6 +188,83 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
               <button key={opt} onClick={() => handleSelect(opt)} disabled={!!result || submitting} className={classes}>
                 {opt}
               </button>
+            )
+          })}
+        </div>
+      )}
+
+      {exercise.exercise_type === 'match' && matchData && !result && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-400 text-center">Toca un elemento de la izquierda, luego su pareja a la derecha</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              {matchData.pairs.map((pair, i) => {
+                const isMatched = userMatches.has(i)
+                const isActive = activeLeft === i
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setActiveLeft(isActive ? null : i)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      isActive ? 'border-lanmac bg-blue-50 text-lanmac ring-2 ring-lanmac/30' :
+                      isMatched ? `${MATCH_COLORS[i % MATCH_COLORS.length]} text-gray-800` :
+                      'border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {pair.left}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="space-y-2">
+              {matchData.shuffledRight.map((item, i) => {
+                const matchedByIdx = [...userMatches.entries()].find(([, ri]) => ri === i)?.[0]
+                const isUsed = matchedByIdx !== undefined
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleMatchSelect(i)}
+                    disabled={activeLeft === null}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      isUsed ? `${MATCH_COLORS[matchedByIdx % MATCH_COLORS.length]} text-gray-800` :
+                      activeLeft !== null ? 'border-gray-200 text-gray-700 hover:border-lanmac hover:bg-blue-50/50 cursor-pointer' :
+                      'border-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          {userMatches.size === matchData.pairs.length && (
+            <button
+              onClick={handleMatchSubmit}
+              disabled={submitting}
+              className="w-full py-3 bg-lanmac text-white rounded-xl font-semibold hover:bg-lanmac-dark transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Verificando...' : 'Verificar'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {exercise.exercise_type === 'match' && matchData && result && (
+        <div className="space-y-2">
+          {matchData.pairs.map((pair, i) => {
+            const rightIdx = userMatches.get(i)
+            const userRight = rightIdx !== undefined ? matchData.shuffledRight[rightIdx] : '?'
+            const isCorrect = userRight === pair.right
+            return (
+              <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-sm ${
+                isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
+              }`}>
+                {isCorrect ? <Check className="w-4 h-4 text-green-600 shrink-0" /> : <X className="w-4 h-4 text-red-600 shrink-0" />}
+                <span className="font-medium">{pair.left}</span>
+                <span className="text-gray-400">→</span>
+                <span className={isCorrect ? 'text-green-700' : 'text-red-700 line-through'}>{userRight}</span>
+                {!isCorrect && <span className="text-green-700 font-medium ml-1">({pair.right})</span>}
+              </div>
             )
           })}
         </div>
@@ -184,7 +321,7 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
             {result.is_correct ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
             {result.is_correct ? '¡Correcto!' : 'Incorrecto'}
           </div>
-          {!result.is_correct && (
+          {!result.is_correct && exercise.exercise_type !== 'match' && (
             <p className="text-sm text-gray-600">
               Respuesta correcta: <strong>{result.correct_answer}</strong>
             </p>

@@ -1,6 +1,6 @@
 export type CefrLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 
-export type ExerciseType = 'multiple_choice' | 'fill_blank' | 'true_false' | 'listen_choose' | 'speak_record'
+export type ExerciseType = 'multiple_choice' | 'fill_blank' | 'true_false' | 'listen_choose' | 'speak_record' | 'match' | 'image_choose'
 
 export type Skill = 'grammar' | 'vocabulary' | 'listening' | 'reading' | 'pronunciation' | 'idioms' | 'speaking'
 
