@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Target, Brain, Zap, ChevronRight, BarChart3 } from 'lucide-react'
+import { BookOpen, Target, Brain, Zap, ChevronRight, BarChart3, Gamepad2, Trophy } from 'lucide-react'
 import type { PracticeUser } from '../lib/types'
 import { CEFR_LABELS, type CefrLevel } from '../lib/types'
 
@@ -87,6 +87,36 @@ export function Landing({ user }: Props) {
             <p className="text-sm text-gray-500 mt-1">{desc}</p>
           </div>
         ))}
+      </section>
+
+      {/* Games & Leaderboard */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4">
+        <button
+          onClick={() => navigate('/games')}
+          className="flex items-center gap-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow text-left"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <Gamepad2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg">Juegos</h3>
+            <p className="text-sm text-white/80">Aprende vocabulario jugando</p>
+          </div>
+          <ChevronRight className="w-5 h-5 ml-auto shrink-0" />
+        </button>
+        <button
+          onClick={() => navigate('/leaderboard')}
+          className="flex items-center gap-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow text-left"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <Trophy className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg">Clasificación</h3>
+            <p className="text-sm text-white/80">Compite con otros practicantes</p>
+          </div>
+          <ChevronRight className="w-5 h-5 ml-auto shrink-0" />
+        </button>
       </section>
 
       {/* CTA */}

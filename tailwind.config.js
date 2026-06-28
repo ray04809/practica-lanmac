@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        lanmac: { DEFAULT: '#2563EB', dark: '#1d4ed8', light: '#60a5fa' },
+        lanmac: { DEFAULT: '#1E5DAA', dark: '#0D3A6E', light: '#4A8BD4' },
         success: '#22c55e',
         danger: '#ef4444',
         warning: '#f59e0b',

@@ -6,6 +6,10 @@ import { PlacementTest } from './pages/PlacementTest'
 import { DailyPractice } from './pages/DailyPractice'
 import { Results } from './pages/Results'
 import { Conversation } from './pages/Conversation'
+import { Leaderboard } from './pages/Leaderboard'
+import { Games } from './pages/Games'
+import { HangMan } from './pages/games/HangMan'
+import { WordSearch } from './pages/games/WordSearch'
 import { useUser } from './hooks/useUser'
 
 function AppContent() {
@@ -50,6 +54,13 @@ function AppContent() {
             path="/results"
             element={user ? <Results user={user} /> : <Landing user={null} />}
           />
+          <Route
+            path="/leaderboard"
+            element={user ? <Leaderboard user={user} /> : <Landing user={null} />}
+          />
+          <Route path="/games" element={<Games />} />
+          <Route path="/games/hangman" element={<HangMan />} />
+          <Route path="/games/wordsearch" element={<WordSearch />} />
           <Route
             path="*"
             element={
