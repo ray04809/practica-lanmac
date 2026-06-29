@@ -34,7 +34,6 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
   const [recording, setRecording] = useState(false)
   const startTime = useRef(Date.now())
   const mediaRecorder = useRef<MediaRecorder | null>(null)
-  const chunks = useRef<Blob[]>([])
 
   const [matchData] = useState(() => {
     if (exercise.exercise_type !== 'match') return null
@@ -103,39 +102,87 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
       setRecording(false)
       return
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream)
-      chunks.current = []
-      mr.ondataavailable = (e) => chunks.current.push(e.data)
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop())
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition()
+      recognition.lang = 'en-US'
+      recognition.interimResults = false
+      recognition.maxAlternatives = 3
+      setRecording(true)
+
+      recognition.onresult = async (event: any) => {
+        setRecording(false)
         setSubmitting(true)
         try {
-          const blob = new Blob(chunks.current, { type: 'audio/webm' })
-          const answer = blob.size > 0 ? exercise.correct_answer : '[no-audio]'
+          const alternatives: string[] = []
+          for (let i = 0; i < event.results[0].length; i++) {
+            alternatives.push(event.results[0][i].transcript.toLowerCase().trim())
+          }
+          const target = exercise.correct_answer.toLowerCase().replace(/[?.!,]/g, '').trim()
+          const matched = alternatives.some(a => {
+            const clean = a.replace(/[?.!,]/g, '').trim()
+            return clean === target || clean.includes(target) || target.includes(clean)
+          })
+          const answer = matched ? exercise.correct_answer : alternatives[0] || '[no-audio]'
           const r = await onSubmit(answer, Date.now() - startTime.current)
           setResult(r)
         } finally {
           setSubmitting(false)
         }
       }
-      mr.start()
-      mediaRecorder.current = mr
-      setRecording(true)
-      setTimeout(() => {
-        if (mr.state === 'recording') {
-          mr.stop()
-          setRecording(false)
+
+      recognition.onerror = async (event: any) => {
+        setRecording(false)
+        if (event.error === 'not-allowed') {
+          alert('Permite acceso al micrófono en la configuración de tu navegador.')
+        } else if (event.error === 'no-speech') {
+          alert('No se detectó voz. Intenta hablar más cerca del micrófono.')
+        } else {
+          setSubmitting(true)
+          try {
+            const r = await onSubmit('[no-audio]', Date.now() - startTime.current)
+            setResult(r)
+          } finally {
+            setSubmitting(false)
+          }
         }
-      }, 10000)
-    } catch {
-      alert('No se pudo acceder al micrófono.')
+      }
+
+      recognition.onend = () => setRecording(false)
+      recognition.start()
+
+      setTimeout(() => {
+        try { recognition.stop() } catch {}
+      }, 8000)
+    } else {
+      alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome para esta función.')
     }
   }
 
   const playTTS = () => {
-    const utterance = new SpeechSynthesisUtterance(exercise.correct_answer)
+    // Prefer pre-generated MP3 (OpenAI TTS-HD) when available — gives consistent
+    // audio across devices. Fall back to browser SpeechSynthesis only if missing.
+    if (exercise.audio_url) {
+      try {
+        const audio = new Audio(exercise.audio_url)
+        audio.play().catch((err) => {
+          console.warn('Falling back to SpeechSynthesis (audio.play failed):', err)
+          speakWithBrowserTTS()
+        })
+        return
+      } catch {
+        speakWithBrowserTTS()
+        return
+      }
+    }
+    speakWithBrowserTTS()
+  }
+
+  const speakWithBrowserTTS = () => {
+    const utterance = new SpeechSynthesisUtterance(
+      exercise.exercise_type === 'listen_choose' ? exercise.prompt : exercise.correct_answer
+    )
     utterance.lang = 'en-US'
     utterance.rate = 0.85
     speechSynthesis.speak(utterance)
@@ -156,8 +203,18 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
         <span className="text-xs text-gray-400">{exercise.cefr_level}</span>
       </div>
 
-      <h3 className="text-lg font-semibold text-gray-900 mt-3 mb-1">{exercise.prompt}</h3>
-      <p className="text-sm text-gray-500 mb-4">{exercise.prompt_es}</p>
+      <h3 className="text-lg font-semibold text-gray-900 mt-3 mb-1">
+        {exercise.exercise_type === 'true_false' ? '¿Es correcta esta oración?' : exercise.prompt}
+      </h3>
+      <p className="text-sm text-gray-500 mb-1">
+        {exercise.exercise_type === 'true_false' ? '' : exercise.prompt_es}
+      </p>
+      {exercise.exercise_type === 'true_false' && (
+        <p className="text-base text-gray-800 font-medium mb-4 bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 italic">
+          "{exercise.prompt}"
+        </p>
+      )}
+      {exercise.exercise_type !== 'true_false' && <div className="mb-4" />}
 
       {exercise.exercise_type === 'listen_choose' && (
         <button
@@ -172,6 +229,9 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
       {isChoiceType && (
         <div className="space-y-2">
           {(exercise.options as string[]).map((opt) => {
+            const displayLabel = exercise.exercise_type === 'true_false'
+              ? (opt === 'True' ? 'Correcta ✓' : opt === 'False' ? 'Incorrecta ✗' : opt)
+              : opt
             let classes = 'w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium '
             if (result) {
               if (opt === result.correct_answer)
@@ -186,7 +246,7 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
             }
             return (
               <button key={opt} onClick={() => handleSelect(opt)} disabled={!!result || submitting} className={classes}>
-                {opt}
+                {displayLabel}
               </button>
             )
           })}
@@ -323,7 +383,11 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
           </div>
           {!result.is_correct && exercise.exercise_type !== 'match' && (
             <p className="text-sm text-gray-600">
-              Respuesta correcta: <strong>{result.correct_answer}</strong>
+              Respuesta correcta: <strong>{
+                exercise.exercise_type === 'true_false'
+                  ? (result.correct_answer === 'True' ? 'Correcta (la oración es válida)' : 'Incorrecta (la oración tiene un error)')
+                  : result.correct_answer
+              }</strong>
             </p>
           )}
           <p className="text-sm text-gray-500">{result.explanation_es}</p>
