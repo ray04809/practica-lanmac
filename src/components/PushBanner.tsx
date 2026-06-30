@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function PushBanner({ fingerprintId }: Props) {
-  const { showBanner, subscribe, dismiss, state } = usePushNotifications(fingerprintId)
+  const { showBanner, subscribe, dismiss } = usePushNotifications(fingerprintId)
 
   if (!showBanner) return null
 

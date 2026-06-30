@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Check, X, Volume2, Mic, MicOff, Send } from 'lucide-react'
+import { Check, X, Volume2, Mic, MicOff, Send, Loader2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import type { Exercise, SubmitResult } from '../lib/types'
 
 const MATCH_COLORS = [
@@ -32,8 +33,15 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [recording, setRecording] = useState(false)
+  const [speakingFeedback, setSpeakingFeedback] = useState<{
+    transcript: string
+    accuracy: number
+    feedback_es: string
+  } | null>(null)
   const startTime = useRef(Date.now())
   const mediaRecorder = useRef<MediaRecorder | null>(null)
+  const speakStreamRef = useRef<MediaStream | null>(null)
+  const speakChunksRef = useRef<Blob[]>([])
 
   const [matchData] = useState(() => {
     if (exercise.exercise_type !== 'match') return null
@@ -96,97 +104,96 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
     setActiveLeft(nextUnmatched >= 0 ? nextUnmatched : null)
   }
 
-  const handleSpeak = async () => {
-    if (recording) {
-      mediaRecorder.current?.stop()
-      setRecording(false)
-      return
-    }
+  // Evaluate recorded audio via Whisper + GPT scoring (edge function)
+  const evaluateSpeakAudio = async (blob: Blob) => {
+    setSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append('audio', blob, 'audio.webm')
+      formData.append('target_phrase', exercise.correct_answer)
+      formData.append('cefr_level', exercise.cefr_level)
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.lang = 'en-US'
-      recognition.interimResults = false
-      recognition.maxAlternatives = 3
+      const { data, error } = await supabase.functions.invoke('evaluate-practice-speaking', {
+        body: formData,
+      })
+
+      if (error) throw error
+
+      const transcript: string = (data?.transcript || '').trim()
+      const accuracy: number = typeof data?.accuracy === 'number' ? data.accuracy : 0
+      const feedback_es: string = data?.feedback_es || ''
+
+      setSpeakingFeedback({ transcript, accuracy, feedback_es })
+
+      // accuracy >= 70 → correct; the grading layer (onSubmit) does its own check, but we pass transcript
+      const answerToSubmit = transcript || '[no-audio]'
+      const r = await onSubmit(answerToSubmit, Date.now() - startTime.current)
+      setResult(r)
+    } catch (err) {
+      console.error('evaluate-practice-speaking failed', err)
+      // Fall back to submitting placeholder so the session can continue
+      const r = await onSubmit('[no-audio]', Date.now() - startTime.current)
+      setResult(r)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const startSpeakRecording = async () => {
+    if (recording || submitting || result) return
+    setSpeakingFeedback(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      speakStreamRef.current = stream
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : ''
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      mediaRecorder.current = rec
+      speakChunksRef.current = []
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) speakChunksRef.current.push(e.data)
+      }
+      rec.onstop = async () => {
+        speakStreamRef.current?.getTracks().forEach((t) => t.stop())
+        speakStreamRef.current = null
+        const blob = new Blob(speakChunksRef.current, { type: 'audio/webm' })
+        speakChunksRef.current = []
+        if (blob.size < 1000) {
+          setRecording(false)
+          alert('Grabación demasiado corta. Mantén presionado mientras hablas.')
+          return
+        }
+        await evaluateSpeakAudio(blob)
+      }
+      rec.start()
       setRecording(true)
 
-      recognition.onresult = async (event: any) => {
-        setRecording(false)
-        setSubmitting(true)
-        try {
-          const alternatives: string[] = []
-          for (let i = 0; i < event.results[0].length; i++) {
-            alternatives.push(event.results[0][i].transcript.toLowerCase().trim())
-          }
-          const target = exercise.correct_answer.toLowerCase().replace(/[?.!,]/g, '').trim()
-          const matched = alternatives.some(a => {
-            const clean = a.replace(/[?.!,]/g, '').trim()
-            return clean === target || clean.includes(target) || target.includes(clean)
-          })
-          const answer = matched ? exercise.correct_answer : alternatives[0] || '[no-audio]'
-          const r = await onSubmit(answer, Date.now() - startTime.current)
-          setResult(r)
-        } finally {
-          setSubmitting(false)
-        }
-      }
-
-      recognition.onerror = async (event: any) => {
-        setRecording(false)
-        if (event.error === 'not-allowed') {
-          alert('Permite acceso al micrófono en la configuración de tu navegador.')
-        } else if (event.error === 'no-speech') {
-          alert('No se detectó voz. Intenta hablar más cerca del micrófono.')
-        } else {
-          setSubmitting(true)
-          try {
-            const r = await onSubmit('[no-audio]', Date.now() - startTime.current)
-            setResult(r)
-          } finally {
-            setSubmitting(false)
-          }
-        }
-      }
-
-      recognition.onend = () => setRecording(false)
-      recognition.start()
-
+      // Safety auto-stop after 10s
       setTimeout(() => {
-        try { recognition.stop() } catch {}
-      }, 8000)
-    } else {
-      alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome para esta función.')
+        if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+          mediaRecorder.current.stop()
+          setRecording(false)
+        }
+      }, 10000)
+    } catch (err) {
+      console.error('mic permission error', err)
+      alert('No pudimos acceder al micrófono. Revisa los permisos del navegador.')
     }
   }
 
-  const playTTS = () => {
-    // Prefer pre-generated MP3 (OpenAI TTS-HD) when available — gives consistent
-    // audio across devices. Fall back to browser SpeechSynthesis only if missing.
-    if (exercise.audio_url) {
-      try {
-        const audio = new Audio(exercise.audio_url)
-        audio.play().catch((err) => {
-          console.warn('Falling back to SpeechSynthesis (audio.play failed):', err)
-          speakWithBrowserTTS()
-        })
-        return
-      } catch {
-        speakWithBrowserTTS()
-        return
-      }
+  const stopSpeakRecording = () => {
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.stop()
     }
-    speakWithBrowserTTS()
+    setRecording(false)
   }
 
-  const speakWithBrowserTTS = () => {
-    const utterance = new SpeechSynthesisUtterance(
-      exercise.exercise_type === 'listen_choose' ? exercise.prompt : exercise.correct_answer
-    )
-    utterance.lang = 'en-US'
-    utterance.rate = 0.85
-    speechSynthesis.speak(utterance)
-  }
+  // Listening exercises always have a pre-generated MP3 (OpenAI TTS-1-HD) — see
+  // supabase/functions/generate-listening-audio. We render an <audio> element
+  // so the user gets a real recording, not synthetic browser TTS.
 
   const isChoiceType =
     exercise.exercise_type === 'multiple_choice' ||
@@ -217,13 +224,23 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
       {exercise.exercise_type !== 'true_false' && <div className="mb-4" />}
 
       {exercise.exercise_type === 'listen_choose' && (
-        <button
-          onClick={playTTS}
-          className="mb-4 flex items-center gap-2 bg-lanmac/10 text-lanmac px-4 py-2 rounded-lg hover:bg-lanmac/20 transition-colors"
-        >
-          <Volume2 className="w-5 h-5" />
-          <span className="text-sm font-medium">Escuchar</span>
-        </button>
+        exercise.audio_url ? (
+          <div className="mb-4 flex items-center gap-2 bg-lanmac/5 border border-lanmac/20 rounded-lg p-3">
+            <Volume2 className="w-5 h-5 text-lanmac shrink-0" />
+            <audio
+              src={exercise.audio_url}
+              controls
+              preload="auto"
+              className="flex-1 h-9"
+            >
+              Tu navegador no soporta audio. <a href={exercise.audio_url}>Descargar</a>
+            </audio>
+          </div>
+        ) : (
+          <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            Audio aún no disponible para este ejercicio.
+          </div>
+        )
       )}
 
       {isChoiceType && (
@@ -360,17 +377,75 @@ export function ExerciseCard({ exercise, onSubmit, onNext }: Props) {
       )}
 
       {exercise.exercise_type === 'speak_record' && !result && (
-        <button
-          onClick={handleSpeak}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium ${
-            recording
-              ? 'border-danger bg-red-50 text-red-700 animate-pulse'
-              : 'border-lanmac bg-blue-50 text-lanmac hover:bg-blue-100'
-          }`}
-        >
-          {recording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-          {recording ? 'Detener grabación...' : 'Mantén presionado para hablar'}
-        </button>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600 mb-1">
+            Frase objetivo: <strong className="text-gray-900">{exercise.correct_answer}</strong>
+          </p>
+          <button
+            onMouseDown={startSpeakRecording}
+            onMouseUp={stopSpeakRecording}
+            onMouseLeave={recording ? stopSpeakRecording : undefined}
+            onTouchStart={(e) => {
+              e.preventDefault()
+              startSpeakRecording()
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault()
+              stopSpeakRecording()
+            }}
+            disabled={submitting}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium select-none ${
+              recording
+                ? 'border-danger bg-red-50 text-red-700 animate-pulse'
+                : submitting
+                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-wait'
+                  : 'border-lanmac bg-blue-50 text-lanmac hover:bg-blue-100'
+            }`}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin" />
+                Evaluando tu pronunciación...
+              </>
+            ) : recording ? (
+              <>
+                <MicOff className="w-6 h-6" />
+                Suelta para enviar
+              </>
+            ) : (
+              <>
+                <Mic className="w-6 h-6" />
+                Mantén presionado para hablar
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {exercise.exercise_type === 'speak_record' && speakingFeedback && (
+        <div className="mt-3 p-3 rounded-xl border bg-gray-50 space-y-1">
+          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Tu pronunciación</p>
+          <p className="text-sm text-gray-800">
+            Dijiste: <em>"{speakingFeedback.transcript || '(audio no claro)'}"</em>
+          </p>
+          <p className="text-sm">
+            Precisión:{' '}
+            <strong
+              className={
+                speakingFeedback.accuracy >= 80
+                  ? 'text-green-700'
+                  : speakingFeedback.accuracy >= 60
+                    ? 'text-amber-600'
+                    : 'text-red-600'
+              }
+            >
+              {speakingFeedback.accuracy}%
+            </strong>
+          </p>
+          {speakingFeedback.feedback_es && (
+            <p className="text-xs text-gray-600 italic">{speakingFeedback.feedback_es}</p>
+          )}
+        </div>
       )}
 
       {result && (

@@ -201,8 +201,6 @@ export function HangMan() {
   const word = wordEntry.word.toUpperCase()
   const wrongLetters = [...guessedLetters].filter((l) => !word.includes(l))
   const wrongCount = wrongLetters.length
-  const correctLetters = [...guessedLetters].filter((l) => word.includes(l))
-  const allRevealed = word.split('').every((l) => guessedLetters.has(l))
 
   function handleGuess(letter: string) {
     if (gameState !== 'playing' || guessedLetters.has(letter)) return

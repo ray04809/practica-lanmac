@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Flame } from 'lucide-react'
+import { Flame, MessageCircle, LogIn } from 'lucide-react'
 
 interface HeaderProps {
   streak?: number
@@ -25,19 +25,15 @@ export function Header({ streak = 0, showStreak }: HeaderProps) {
       }`}
     >
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-        <a href="https://lanmac.edu.do" className="flex items-center gap-2">
+        <a href="https://lanmac.edu.do" className="flex items-center">
           <img
-            src="https://lanmac.edu.do/wp-content/uploads/2024/02/LANMAC-Logo-200px.webp"
+            src="/logo-lanmac.png"
             alt="LANMAC"
             className="h-10 w-auto"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }}
           />
-          <span className="text-lanmac font-bold text-lg hidden sm:inline">LANMAC</span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {showStreak && streak > 0 && (
             <div className="flex items-center gap-1 bg-orange-50 px-3 py-1 rounded-full animate-streak-glow">
               <Flame className="w-4 h-4 text-streak" />
@@ -45,10 +41,22 @@ export function Header({ streak = 0, showStreak }: HeaderProps) {
             </div>
           )}
           <a
-            href="https://lanmac.edu.do"
-            className="text-sm text-gray-500 hover:text-lanmac transition-colors hidden sm:block"
+            href="https://wa.me/18098706555?text=Hola%20LANA%2C%20quiero%20info%20sobre%20los%20cursos"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-50"
           >
-            lanmac.edu.do
+            <MessageCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Habla con LANA</span>
+          </a>
+          <a
+            href="https://portal.lanmac.edu.do"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-sm font-semibold text-white bg-lanmac px-4 py-1.5 rounded-lg hover:bg-lanmac-dark transition-colors"
+          >
+            <LogIn className="w-4 h-4" />
+            <span className="hidden sm:inline">Portal</span>
           </a>
         </div>
       </div>

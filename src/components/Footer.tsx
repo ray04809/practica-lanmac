@@ -41,9 +41,13 @@ export function Footer() {
       className="mt-auto text-white"
       style={{ background: 'linear-gradient(135deg, #1a365d 0%, #0a2a52 100%)' }}
     >
-      <div className="max-w-5xl mx-auto px-4 py-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <h3 className="text-xl font-bold mb-1 tracking-tight">LANMAC</h3>
+      <div className="max-w-6xl mx-auto px-4 py-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <img
+            src="/logo-lanmac-blanco.png"
+            alt="LANMAC"
+            className="h-10 w-auto mb-2"
+          />
           <p className="text-xs text-white/50 mb-4">Language Makers Academy</p>
           <ul className="space-y-2 text-sm text-white/70">
             <li className="flex items-start gap-2">
@@ -68,6 +72,15 @@ export function Footer() {
             <li><a href="https://portal.lanmac.edu.do" target="_blank" rel="noreferrer" className="hover:text-blue-300 transition-colors">Portal</a></li>
             <li><a href="https://practica.lanmac.edu.do" className="hover:text-blue-300 transition-colors">Practica</a></li>
             <li><a href="https://wa.me/18098706555" target="_blank" rel="noreferrer" className="hover:text-blue-300 transition-colors">WhatsApp</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3 text-white">Legal</h4>
+          <ul className="space-y-2 text-sm text-white/70">
+            <li><a href="/legal/privacidad" className="hover:text-blue-300 transition-colors">Política de Privacidad</a></li>
+            <li><a href="/legal/terminos" className="hover:text-blue-300 transition-colors">Términos y Condiciones</a></li>
+            <li><a href="/legal/cookies" className="hover:text-blue-300 transition-colors">Política de Cookies</a></li>
           </ul>
         </div>
 

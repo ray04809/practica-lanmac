@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Trophy, RefreshCw, Users, Target, Flame } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { CEFR_COLORS, CEFR_LABELS, type CefrLevel, type PracticeUser } from '../lib/types'
+import { CEFR_COLORS, type CefrLevel, type PracticeUser } from '../lib/types'
 
 interface Props {
   user: PracticeUser

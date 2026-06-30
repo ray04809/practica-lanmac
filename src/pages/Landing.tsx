@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Target, Brain, Zap, ChevronRight, BarChart3, Gamepad2, Trophy } from 'lucide-react'
+import { RecoverModal } from '../components/RecoverModal'
 import type { PracticeUser } from '../lib/types'
 import { CEFR_LABELS, type CefrLevel } from '../lib/types'
 
 interface Props {
   user: PracticeUser | null
+  onRefresh?: () => void
 }
 
-export function Landing({ user }: Props) {
+export function Landing({ user, onRefresh }: Props) {
   const navigate = useNavigate()
+  const [showRecover, setShowRecover] = useState(false)
   const hasLevel = user && user.detected_cefr
   const hasPracticed = user && user.total_exercises > 0
 
@@ -30,14 +34,22 @@ export function Landing({ user }: Props) {
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
           {!hasLevel ? (
-            <button
-              onClick={() => navigate('/placement')}
-              className="flex items-center justify-center gap-2 bg-lanmac text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-lanmac-dark transition-colors shadow-lg shadow-lanmac/25"
-            >
-              <Target className="w-5 h-5" />
-              Descubrir mi nivel
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            <>
+              <button
+                onClick={() => navigate('/placement')}
+                className="flex items-center justify-center gap-2 bg-lanmac text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-lanmac-dark transition-colors shadow-lg shadow-lanmac/25"
+              >
+                <Target className="w-5 h-5" />
+                Descubrir mi nivel
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowRecover(true)}
+                className="text-sm text-gray-400 hover:text-lanmac transition-colors"
+              >
+                Ya me registré antes
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -133,6 +145,17 @@ export function Landing({ user }: Props) {
           <ChevronRight className="w-5 h-5" />
         </a>
       </section>
+
+      {showRecover && (
+        <RecoverModal
+          onRecovered={() => {
+            setShowRecover(false)
+            onRefresh?.()
+            navigate('/practice')
+          }}
+          onClose={() => setShowRecover(false)}
+        />
+      )}
     </div>
   )
 }

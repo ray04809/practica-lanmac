@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { PushBanner } from './components/PushBanner'
+import { CookieBanner } from './components/CookieBanner'
 import { Landing } from './pages/Landing'
 import { PlacementTest } from './pages/PlacementTest'
 import { DailyPractice } from './pages/DailyPractice'
@@ -11,6 +12,9 @@ import { Leaderboard } from './pages/Leaderboard'
 import { Games } from './pages/Games'
 import { HangMan } from './pages/games/HangMan'
 import { WordSearch } from './pages/games/WordSearch'
+import { LegalPrivacy } from './pages/LegalPrivacy'
+import { LegalTerms } from './pages/LegalTerms'
+import { LegalCookies } from './pages/LegalCookies'
 import { useUser } from './hooks/useUser'
 
 function AppContent() {
@@ -32,7 +36,7 @@ function AppContent() {
       <Header streak={user?.current_streak} showStreak={!!user && user.total_exercises > 0} />
       <main className="flex-1 max-w-4xl mx-auto w-full">
         <Routes>
-          <Route path="/" element={<Landing user={user} />} />
+          <Route path="/" element={<Landing user={user} onRefresh={refresh} />} />
           <Route
             path="/placement"
             element={
@@ -62,6 +66,9 @@ function AppContent() {
           <Route path="/games" element={<Games />} />
           <Route path="/games/hangman" element={<HangMan />} />
           <Route path="/games/wordsearch" element={<WordSearch />} />
+          <Route path="/legal/privacidad" element={<LegalPrivacy />} />
+          <Route path="/legal/terminos" element={<LegalTerms />} />
+          <Route path="/legal/cookies" element={<LegalCookies />} />
           <Route
             path="*"
             element={
@@ -77,6 +84,7 @@ function AppContent() {
         </Routes>
       </main>
       <Footer />
+      <CookieBanner />
       <PushBanner fingerprintId={user?.fingerprint ?? null} />
     </div>
   )

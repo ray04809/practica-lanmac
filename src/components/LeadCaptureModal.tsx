@@ -34,9 +34,9 @@ export function LeadCaptureModal({ onSubmit, onSkip }: Props) {
           <div className="w-14 h-14 bg-lanmac/10 rounded-full flex items-center justify-center mx-auto mb-3">
             <Gift className="w-7 h-7 text-lanmac" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900">¡Obtén tu plan personalizado!</h3>
+          <h3 className="text-xl font-bold text-gray-900">¡Guarda tu progreso!</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Recibe un plan de estudio basado en tus resultados y tips exclusivos de SPEAK360.
+            Recibe tu plan de estudio personalizado y podrás recuperar tu nivel desde cualquier dispositivo sin repetir el test.
           </p>
         </div>
 
