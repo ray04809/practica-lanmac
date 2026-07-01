@@ -8,8 +8,6 @@ import { PlacementTest } from './pages/PlacementTest'
 import { DailyPractice } from './pages/DailyPractice'
 import { Results } from './pages/Results'
 import { Conversation } from './pages/Conversation'
-import { ReadingPractice } from './pages/ReadingPractice'
-import { ConversationPractice } from './pages/ConversationPractice'
 import { Leaderboard } from './pages/Leaderboard'
 import { Games } from './pages/Games'
 import { HangMan } from './pages/games/HangMan'
@@ -55,18 +53,6 @@ function AppContent() {
             path="/conversation"
             element={
               user ? <Conversation user={user} /> : <Landing user={null} />
-            }
-          />
-          <Route
-            path="/reading"
-            element={
-              user ? <ReadingPractice user={user} /> : <Landing user={null} />
-            }
-          />
-          <Route
-            path="/conversation-practice"
-            element={
-              user ? <ConversationPractice user={user} /> : <Landing user={null} />
             }
           />
           <Route

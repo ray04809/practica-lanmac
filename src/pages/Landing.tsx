@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Target, Brain, Zap, ChevronRight, BarChart3, Gamepad2, Trophy, Mic, MessageCircle } from 'lucide-react'
+import { BookOpen, Target, Brain, Zap, ChevronRight, BarChart3, Gamepad2, Trophy } from 'lucide-react'
 import { RecoverModal } from '../components/RecoverModal'
 import type { PracticeUser } from '../lib/types'
 import { CEFR_LABELS, type CefrLevel } from '../lib/types'
@@ -130,41 +130,6 @@ export function Landing({ user, onRefresh }: Props) {
           <ChevronRight className="w-5 h-5 ml-auto shrink-0" />
         </button>
       </section>
-
-      {/* Voice Practice */}
-      {hasLevel && (
-        <section className="space-y-3 px-4">
-          <h2 className="text-lg font-bold text-gray-900 px-1">Práctica de voz</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => navigate('/reading')}
-              className="flex items-center gap-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow text-left"
-            >
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Lectura</h3>
-                <p className="text-sm text-white/80">Lee en voz alta y mejora tu pronunciación</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto shrink-0" />
-            </button>
-            <button
-              onClick={() => navigate('/conversation-practice')}
-              className="flex items-center gap-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow text-left"
-            >
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Conversación</h3>
-                <p className="text-sm text-white/80">Habla con IA y practica hasta 1 hora</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto shrink-0" />
-            </button>
-          </div>
-        </section>
-      )}
 
       {/* CTA */}
       <section className="bg-lanmac rounded-2xl mx-4 p-8 text-center text-white">
